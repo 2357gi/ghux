@@ -7,7 +7,6 @@
 
 GHUX_WITHOUT_USER_NAME=0
 
-ghq_root=$(ghq root)
 
 function print_usage() {
 	cat << EOL
@@ -20,6 +19,7 @@ EOL
 
 function get_project_dir() {
 	local _project_dir=$(ghq list|fzf)
+	ghq_root=$(ghq root)
 	echo $ghq_root/$_project_dir
 
 }
@@ -31,10 +31,10 @@ function ghux() {
 		exit 1
 	fi
 
-	if [[ ! -z $TMUX ]] ; then
-		print_usage
-		exit 1
-	fi
+# 	if [[ ! -z $TMUX ]] ; then
+# 		print_usage
+# 		exit 1
+# 	fi
 
 	project_dir=`get_project_dir`
 	cd $project_dir
@@ -51,7 +51,11 @@ function ghux() {
 	
 	
 	if [[ $is_session == 1 ]] ; then
-		tmux attach-session -t $project_name
+		if [[ ! -z $TMUX ]] ; then
+			tmux swich-client -t $project_name
+		else;
+			tmux attach-session -t $project_name
+		fi
 	else;
 		tmux new -s $project_name
 	fi

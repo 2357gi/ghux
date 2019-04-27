@@ -13,6 +13,7 @@ Zplug
 ```zsh:.zshrc
 zplug 2357gi/ghux
 ```
+* i have not test this
 
 ## Usage
 Ctrl-g
