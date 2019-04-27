@@ -61,6 +61,3 @@ function ghux() {
 	fi
 }
 
-
-zle -N ghux
-bindkey "^g" ghux
