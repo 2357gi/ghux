@@ -52,7 +52,7 @@ function ghux() {
 	
 	if [[ $is_session == 1 ]] ; then
 		if [[ ! -z $TMUX ]] ; then
-			tmux swich-client -t $project_name
+			tmux switch-client -t $project_name
 		else;
 			tmux attach-session -t $project_name
 		fi
