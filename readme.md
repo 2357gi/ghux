@@ -18,6 +18,8 @@ zplug 2357gi/ghux
 ## Usage
 Ctrl-g
 
+## golang
+branch - dev_goにてgolangで書き直してます。
 
 ## License
 MIT :copyright: 2357gi
