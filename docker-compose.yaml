@@ -1,0 +1,10 @@
+version: '3'
+services:
+  run:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    volumes:
+      - ./:/go/src/ghux:cached
+    command: ["go", "run", "main.go"]
+
