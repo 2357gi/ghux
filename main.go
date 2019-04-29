@@ -14,7 +14,7 @@
 
 package main
 
-import "ghux/cmd"
+import "github.com/2357gi/ghux/cmd"
 
 func main() {
 	cmd.Execute()

@@ -1,0 +1,24 @@
+# -----------
+# build
+# -----------
+FROM golang:1.12.4-alpine3.9
+ENV GOPATH="/go"
+WORKDIR /go/src/github.com/2357gi/ghux/
+RUN apk add --no-cache git mercurial \
+	&& go get github.com/mitchellh/go-homedir \
+	&& go get github.com/spf13/cobra \
+	&& go get github.com/spf13/viper \
+	&& apk del git mercurial
+
+COPY ./main.go .
+COPY ./cmd/root.go .
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o app .
+
+# -----------
+# run
+# -----------
+FROM alpine:latest  
+RUN apk --no-cache add ca-certificates
+WORKDIR /root/
+COPY --from=0 /go/src/github.com/2357gi/ghux/ .
+CMD ["./app"]
