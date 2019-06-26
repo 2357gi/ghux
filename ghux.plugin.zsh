@@ -57,8 +57,11 @@ function ghux() {
             tmux attach-session -t $project_name
         fi
     else;
-        
-        tmux new -s $project_name
+        if [[ ! -z $TMUX ]] ; then
+            tmux ___________ $project_name
+        else;
+            tmux new -s $project_name
+        fi
     fi
 }
 
