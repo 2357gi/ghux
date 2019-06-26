@@ -16,10 +16,17 @@ zplug 2357gi/ghux
 * i have not test this
 
 ## Usage
-Ctrl-g
+```
+$ ghux
+```
+
+`GHUX_WITHOUT_USER_NAME=1`するとセッション名がリポジトリ名だけになる
 
 ## golang
 branch - dev_goにてgolangで書き直してます。
+
+# todo
+- [ ] tmuxの中で使えないバグ
 
 ## License
 MIT :copyright: 2357gi
