@@ -43,7 +43,7 @@ function ghux() {
     # tmuxに既にfzfで選択したプロジェクトのセッションが存在するかどうか
     is_session=$(tmux list-sessions | awk -v project_name="$project_name" '{if($1 == project_name":"){print 0}}')
     if [[ -z $is_session ]]; then
-        (TMUX=; tmux new-session -ds $project_name)
+        (cd $project_dir && TMUX=; tmux new-session -ds $project_name)
     fi
 
     if [[ -n $in_tmux ]] ; then
