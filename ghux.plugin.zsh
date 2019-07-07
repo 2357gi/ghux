@@ -23,11 +23,6 @@ function ghux() {
         exit 1
     fi
 
-#     if [[ ! -z $TMUX ]] ; then
-#         print_usage
-#         exit 1
-#     fi
-
     project_dir=$(ghq list|fzf)
     [[ -z $project_dir ]] && echo "Error: you should choice directry." >&2 && return 1
 
@@ -42,29 +37,18 @@ function ghux() {
         project_name=$( echo $project_dir |rev | awk -F \/ '{printf "%s", $1}' |rev)
     fi
 
-    echo "---------- dev version ---------- "
-
-    # tmuxに既にfzfで選択したプロジェクトのセッションが存在するかどうか
-    is_session=$(tmux list-sessions | awk -v project_name="$project_name" '{if($1 == project_name":"){print 0}}')
-    
     # if you in tmux ssesion
     [[ -n $TMUX ]] && in_tmux=0 ; echo "in_tmux: $in_tmux"
 
+    # tmuxに既にfzfで選択したプロジェクトのセッションが存在するかどうか
+    is_session=$(tmux list-sessions | awk -v project_name="$project_name" '{if($1 == project_name":"){print 0}}')
     if [[ -z $is_session ]]; then
-        echo "create new session within if"
         (TMUX=; tmux new-session -ds $project_name)
     fi
 
-    # 存在していなかったらnewsession
-    # echo "create new session outof if"
-    # (TMUX= tmux new -s -d $project_name)
-
-    echo "echo \$TMUX: $TMUX "
     if [[ -n $in_tmux ]] ; then
-        echo "switch client"
         tmux switch-client -t $project_name
     else;
-        echo "attach session"
         tmux attach-session -t $project_name
     fi
 }
