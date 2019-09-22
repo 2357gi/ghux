@@ -4,8 +4,11 @@
 #
 # if you dont need user id in tmux session name, set this.
 # GHUX_WITHOUT_USER_NAME=1
-
 GHUX_WITHOUT_USER_NAME=0
+# 
+
+local -A opthash
+zparseopts -D -A opthash -- -dotfiles d
 
 
 function print_usage() {
@@ -21,6 +24,13 @@ function ghux() {
     if ! (type ghq &> /dev/null && type fzf &> /dev/null); then
         print_usage
         exit 1
+    fi
+
+    if [[ -n "${opthash[(i)-d]}" ]]; then
+        echo "d, dotfiles is selected"
+        project_dir="~/dotfiles"
+    else
+        project_dir=$(ghq list|fzf)
     fi
 
     project_dir=$(ghq list|fzf)
