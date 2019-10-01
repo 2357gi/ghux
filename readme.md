@@ -25,8 +25,6 @@ $ ghux
 ## golang
 branch - dev_goにてgolangで書き直してます。
 
-# todo
-- [ ] tmuxの中で使えないバグ
 
 ## License
 MIT :copyright: 2357gi
