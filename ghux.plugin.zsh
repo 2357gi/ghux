@@ -23,22 +23,25 @@ function ghux() {
     fi
 
 
-    local project_dir=$(ghq list|fzf)
-    if [[ -z $project_dir ]]; then
-        [[ -n $CURSOR ]] && zle clear-screen
-        return 1
-    fi
+    if [[ $1 == "dotfiles" ]];then
+        project_dir="~/dotfiles"
+        project_name="dotfiles"
+    else
+        local project_dir=$(ghq list|fzf)
 
-    local ghq_root=$(ghq root)
-    local project_dir=$(ghq root)/$project_dir
+        if [[ -z $project_dir ]]; then
+            [[ -n $CURSOR ]] && zle clear-screen
+            return 1
+        fi
 
-
-    local project_name
-    # session名にusernameを含めるかどうか
-    if [[ $GHUX_WITHOUT_USER_NAME == 0 ]] ; then
-        project_name=$( echo $project_dir |rev | awk -F \/ '{printf "%s/%s", $1,$2}' |rev)
-    else;
-        project_name=$( echo $project_dir |rev | awk -F \/ '{printf "%s", $1}' |rev)
+        local ghq_root=$(ghq root)
+        project_dir=$(ghq root)/$project_dir
+        # session名にusernameを含めるかどうか
+        if [[ $GHUX_WITHOUT_USER_NAME == 0 ]] ; then
+            project_name=$( echo $project_dir |rev | awk -F \/ '{printf "%s/%s", $1,$2}' |rev)
+        else;
+            project_name=$( echo $project_dir |rev | awk -F \/ '{printf "%s", $1}' |rev)
+        fi
     fi
 
     # if you in tmux sesion
