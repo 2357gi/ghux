@@ -13,7 +13,6 @@ function print_usage() {
 You dont have ghq or fzf.
 $ go get github.com/motemen/ghq
 $ brew install fzf
-or detach tmux session
 EOL
 }
 
@@ -23,13 +22,18 @@ function ghux() {
         exit 1
     fi
 
-    project_dir=$(ghq list|fzf)
-    [[ -z $project_dir ]] && echo "Error: you should choice directry." >&2 && return 1
 
-    ghq_root=$(ghq root)
-    project_dir=$ghq_root/$project_dir
+    local project_dir=$(ghq list|fzf)
+    if [[ -z $project_dir ]]; then
+        [[ -n $CURSOR ]] && zle clear-screen
+        return 1
+    fi
+
+    local ghq_root=$(ghq root)
+    local project_dir=$(ghq root)/$project_dir
 
 
+    local project_name
     # session名にusernameを含めるかどうか
     if [[ $GHUX_WITHOUT_USER_NAME == 0 ]] ; then
         project_name=$( echo $project_dir |rev | awk -F \/ '{printf "%s/%s", $1,$2}' |rev)
@@ -37,8 +41,8 @@ function ghux() {
         project_name=$( echo $project_dir |rev | awk -F \/ '{printf "%s", $1}' |rev)
     fi
 
-    # if you in tmux ssesion
-    [[ -n $TMUX ]] && in_tmux=0 ; echo "in_tmux: $in_tmux"
+    # if you in tmux sesion
+    [[ -n $TMUX ]] && in_tmux=0
 
     # tmuxに既にfzfで選択したプロジェクトのセッションが存在するかどうか
     is_session=$(tmux list-sessions | awk -v project_name="$project_name" '{if($1 == project_name":"){print 0}}')
@@ -51,5 +55,8 @@ function ghux() {
     else;
         tmux attach-session -t $project_name
     fi
+    [[ -n $CURSOR ]] && zle redisplay
+
 }
 
+zle -N ghux
