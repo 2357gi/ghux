@@ -23,19 +23,33 @@ function ghux() {
     fi
 
 
+    local tmux_list=$(tmux list-session)
+    local ghq_list=$(ghq list)
+
     if [[ $1 == "dotfiles" ]];then
         project_dir="~/dotfiles"
         project_name="dotfiles"
+#     elif [[ -n $1 ]];then
+#         if ![[ $tmux_list =~ $1 ]]; then
+#             [[ -n $CURSOR ]] && zle clear-screen
+#             return 1
+#         else
+#             
+#         fi
     else
-        local project_dir=$(ghq list|fzf)
+        local project_dir
+        if [[ -n $1 ]];then
+            project_dir=$(ghq list|fzf -q $1)
+        fi
+        project_dir=$(ghq list|fzf)
 
         if [[ -z $project_dir ]]; then
             [[ -n $CURSOR ]] && zle clear-screen
             return 1
         fi
 
-        local ghq_root=$(ghq root)
-        project_dir=$(ghq root)/$project_dir
+        local project_dir=$(ghq root)/$project_dir
+        local project_name
         # session名にusernameを含めるかどうか
         if [[ $GHUX_WITHOUT_USER_NAME == 0 ]] ; then
             project_name=$( echo $project_dir |rev | awk -F \/ '{printf "%s/%s", $1,$2}' |rev)
@@ -48,8 +62,7 @@ function ghux() {
     [[ -n $TMUX ]] && in_tmux=0
 
     # tmuxに既にfzfで選択したプロジェクトのセッションが存在するかどうか
-    is_session=$(tmux list-sessions | awk -v project_name="$project_name" '{if($1 == project_name":"){print 0}}')
-    if [[ -z $is_session ]]; then
+    if [[ tmux_list =~ $project_name ]]; then
         (cd $project_dir && TMUX=; tmux new-session -ds $project_name)
     fi
 
