@@ -1,10 +1,9 @@
 #!/usr/bin/env zsh
 
-# set -eu
 #
 # if you dont need user id in tmux session name, set this.
 # GHUX_WITHOUT_USER_NAME=1
-: ${GHUX_WITHOUT_USER_NAME:=0}
+: ${GHUX_WITH_USER_NAME:=0}
 
 # if you want to going dotfiles dir with ghux, add this option
 # GHUX_DOTFILES_OPTION=1
@@ -28,29 +27,25 @@ function ghux() {
         exit 1
     fi
 
-
-    local tmux_list=$(tmux list-session)
-
+    # touchはファイルが存在しなかったときだけ作ってくれるので
+    touch $GHUX_ALIASES_PATH
     local file
     file="$GHUX_ALIASES_PATH"
-    if [[ -n $1 ]];then
-        project_dir="~/dotfiles"
-        project_name="dotfiles"
-#     elif [[ -n $1 ]];then
-#         if ![[ $tmux_list =~ $1 ]]; then
-#             [[ -n $CURSOR ]] && zle clear-screen
-#             return 1
-#         else
-#             
-#         fi
+
+    if [[ -n $1 ]] && [[ `cat $file |grep "$1"` ]];then
+        local tmp=$(cat $file |grep "$1")
+        line=( `echo $tmp | tr -s ',' ' '`)
+        project_alias=${line[1]}
+        project_name=${line[2]}
+        project_dir=${line[3]}
     else
         local project_dir
-        # if [[ -n $1 ]];then
-        if [[ `echo $ghux_aliases |grep "$1"` ]];then
-            project_dir=$(echo $ghq_list|fzf --preview="" -q $1)
-        else
-            project_dir=$(echo $ghq_list|fzf --preview="")
-        fi
+        local ghq_list=$(ghq list)
+        local list
+        project_list="$(cat ~/.ghux_aliases| tr -s ',' ' ' | awk '{print "[alias]", $1}')
+$ghq_list"
+
+        project_dir=$(echo $project_list|fzf)
 
         if [[ -z $project_dir ]]; then
             [[ -n $CURSOR ]] && zle redisplay
@@ -60,18 +55,21 @@ function ghux() {
         project_dir=$(ghq root)/$project_dir
         local project_name
         # session名にusernameを含めるかどうか
-        if [[ $GHUX_WITHOUT_USER_NAME == 0 ]] ; then
-            project_name=$( echo $project_dir |rev | awk -F \/ '{printf "%s/%s", $1,$2}' |rev)
-        else;
+        if [[ $GHUX_WITH_USER_NAME == 0 ]] ; then
             project_name=$( echo $project_dir |rev | awk -F \/ '{printf "%s", $1}' |rev)
+        else;
+            project_name=$( echo $project_dir |rev | awk -F \/ '{printf "%s/%s", $1,$2}' |rev)
         fi
     fi
 
     # if you in tmux sesion
     [[ -n $TMUX ]] && in_tmux=0
 
+    local tmux_list=$(tmux list-session)
+
     # tmuxに既にfzfで選択したプロジェクトのセッションが存在するかどうか
     if [[ ! `echo $tmux_list | grep "$project_name"` ]]; then
+        echo cant find. make session
         (cd $project_dir && TMUX=; tmux new-session -ds $project_name) > /dev/null
     fi
 
