@@ -35,12 +35,21 @@ or
 ```zsh:.zshrc
 bindkey ^G ghux
 ```
+and do `^G` in zsh
 
-`GHUX_WITHOUT_USER_NAME=1`するとセッション名がリポジトリ名だけになる
+`GHUX_WITH_USER_NAME=1`するとセッション名がリポジトリユーザー+リポジトリ名になる
+
+### alias機能
+`~/.ghux_aliases`にghuxのaliasを登録することができる。
+形式は`<alias>,<名前>,<ファイルパス>`
+
+例: dotfilesのaliasを追加する
+
+```
+dotfiles,dotfiles,$HOME/dotfiles
+```
 
 ## todo
-- [ ] dotfilesだけ特殊な動きをするが、そういった動きをユーザーが自由に作れるように\
-e.g. 外部に`alias, project_name, project_dir` のリストを保持しそれをよしなに
 - [ ] gifを追加する
 
 ## License
