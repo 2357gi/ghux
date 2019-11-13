@@ -4,8 +4,14 @@
 #
 # if you dont need user id in tmux session name, set this.
 # GHUX_WITHOUT_USER_NAME=1
+: ${GHUX_WITHOUT_USER_NAME:=0}
 
-GHUX_WITHOUT_USER_NAME=0
+# if you want to going dotfiles dir with ghux, add this option
+# GHUX_DOTFILES_OPTION=1
+: ${GHUX_DOTFILES_OPTION:=0}
+
+# set ghux aliases path
+: ${GHUX_ALIASES_PATH:="$HOME/.ghux_aliases"}
 
 
 function print_usage() {
@@ -25,8 +31,12 @@ function ghux() {
 
     local tmux_list=$(tmux list-session)
     local ghq_list=$(ghq list)
+    # [[ $GHUX_DOTFILES_OPTION == 0 ]] && ghq_list="* dotfiles"
 
-    if [[ $1 == "dotfiles" ]];then
+    local file
+    file="$GHUX_ALIASES_PATH"
+    if [[ -n $1 ]];then
+    # if [[ `echo $ghux_aliases |grep $1` ]];then
         project_dir="~/dotfiles"
         project_name="dotfiles"
 #     elif [[ -n $1 ]];then
@@ -38,10 +48,11 @@ function ghux() {
 #         fi
     else
         local project_dir
-        if [[ -n $1 ]];then
-            project_dir=$(ghq list|fzf -q $1)
+        # if [[ -n $1 ]];then
+        if [[ `echo $ghux_aliases |grep $1` ]];then
+            project_dir=$(echo $ghq_list|fzf --preview="" -q $1)
         else
-            project_dir=$(ghq list|fzf)
+            project_dir=$(echo $ghq_list|fzf --preview="")
         fi
 
         if [[ -z $project_dir ]]; then
@@ -49,7 +60,7 @@ function ghux() {
             return 1
         fi
 
-        local project_dir=$(ghq root)/$project_dir
+        project_dir=$(ghq root)/$project_dir
         local project_name
         # session名にusernameを含めるかどうか
         if [[ $GHUX_WITHOUT_USER_NAME == 0 ]] ; then
@@ -63,7 +74,7 @@ function ghux() {
     [[ -n $TMUX ]] && in_tmux=0
 
     # tmuxに既にfzfで選択したプロジェクトのセッションが存在するかどうか
-    if [[ tmux_list =~ $project_name ]]; then
+    if [[ ! `echo $tmux_list |grep $project_name` ]]; then
         (cd $project_dir && TMUX=; tmux new-session -ds $project_name)
     fi
 
