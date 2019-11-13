@@ -30,13 +30,10 @@ function ghux() {
 
 
     local tmux_list=$(tmux list-session)
-    local ghq_list=$(ghq list)
-    # [[ $GHUX_DOTFILES_OPTION == 0 ]] && ghq_list="* dotfiles"
 
     local file
     file="$GHUX_ALIASES_PATH"
     if [[ -n $1 ]];then
-    # if [[ `echo $ghux_aliases |grep $1` ]];then
         project_dir="~/dotfiles"
         project_name="dotfiles"
 #     elif [[ -n $1 ]];then
@@ -49,14 +46,14 @@ function ghux() {
     else
         local project_dir
         # if [[ -n $1 ]];then
-        if [[ `echo $ghux_aliases |grep $1` ]];then
+        if [[ `echo $ghux_aliases |grep "$1"` ]];then
             project_dir=$(echo $ghq_list|fzf --preview="" -q $1)
         else
             project_dir=$(echo $ghq_list|fzf --preview="")
         fi
 
         if [[ -z $project_dir ]]; then
-            [[ -n $CURSOR ]] && zle clear-screen
+            [[ -n $CURSOR ]] && zle redisplay
             return 1
         fi
 
@@ -83,7 +80,7 @@ function ghux() {
     else;
         tmux attach-session -t $project_name
     fi
-    [[ -n $CURSOR ]] && zle redisplay || clear
+    [[ -n $CURSOR ]] && zle redisplay
 
 }
 
