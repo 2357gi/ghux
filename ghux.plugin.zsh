@@ -40,8 +40,9 @@ function ghux() {
         local project_dir
         if [[ -n $1 ]];then
             project_dir=$(ghq list|fzf -q $1)
+        else
+            project_dir=$(ghq list|fzf)
         fi
-        project_dir=$(ghq list|fzf)
 
         if [[ -z $project_dir ]]; then
             [[ -n $CURSOR ]] && zle clear-screen
