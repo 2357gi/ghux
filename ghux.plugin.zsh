@@ -74,8 +74,9 @@ function ghux() {
     [[ -n $TMUX ]] && in_tmux=0
 
     # tmuxに既にfzfで選択したプロジェクトのセッションが存在するかどうか
-    if [[ ! `echo $tmux_list |grep $project_name` ]]; then
-        (cd $project_dir && TMUX=; tmux new-session -ds $project_name)
+    # if [[ $tmux_list =~ $project_name ]]; then
+    if [[ ! `echo $tmux_list | grep "$project_name"` ]]; then
+        (cd $project_dir && TMUX=; tmux new-session -ds $project_name) > /dev/null
     fi
 
     if [[ -n $in_tmux ]] ; then
@@ -83,7 +84,7 @@ function ghux() {
     else;
         tmux attach-session -t $project_name
     fi
-    [[ -n $CURSOR ]] && zle redisplay
+    [[ -n $CURSOR ]] && zle redisplay || clear
 
 }
 
