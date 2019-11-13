@@ -1,10 +1,5 @@
 #!/usr/bin/env zsh
-
 #
-# if you dont need user id in tmux session name, set this.
-# GHUX_WITHOUT_USER_NAME=1
-: ${GHUX_WITH_USER_NAME:=0}
-
 # if you want to going dotfiles dir with ghux, add this option
 # GHUX_DOTFILES_OPTION=1
 : ${GHUX_DOTFILES_OPTION:=0}
@@ -34,7 +29,7 @@ function ghux() {
 
     if [[ -n $1 ]] && [[ `cat $file |grep "$1"` ]];then
         local tmp=$(cat $file |grep "$1")
-        line=( `echo $tmp | tr -s ',' ' '`)
+        line=( `echo $tmp | tr -s ',' ' '` )
         project_alias=${line[1]}
         project_name=${line[2]}
         project_dir=${line[3]}
@@ -45,7 +40,9 @@ function ghux() {
         project_list="$(cat ~/.ghux_aliases | awk -F , '{print "[alias]", $1}')
 $ghq_list"
 
-        project_dir=$(echo $project_list|fzf)
+
+        project_dir=`echo $project_list|fzf`
+
         if [[ -z $project_dir ]]; then
             [[ -n $CURSOR ]] && zle redisplay
             return 1
@@ -54,15 +51,10 @@ $ghq_list"
         if [[ ! $project_dir =~ [alias] ]];then
             project_dir=$(ghq root)/$project_dir
             local project_name
-            # session名にusernameを含めるかどうか
-            if [[ $GHUX_WITH_USER_NAME == 0 ]] ; then
-                project_name=$( echo $project_dir |rev | awk -F \/ '{printf "%s", $1}' |rev)
-            else;
-                project_name=$( echo $project_dir |rev | awk -F \/ '{printf "%s/%s", $1,$2}' |rev)
-            fi
+            project_name=$( echo $project_dir |rev | awk -F \/ '{printf "%s", $1}' |rev)
         else
             als=$(echo $project_dir| awk '{print $2}')
-            line=( `cat $file|grep -E '^'$als | tr -s ',' ' '`)
+            line=( `cat $file|grep -E '^'$als | tr -s ',' ' '` )
             project_alias=${line[1]}
             project_name=${line[2]}
             project_dir=${line[3]}
@@ -76,7 +68,6 @@ $ghq_list"
 
     # tmuxに既にfzfで選択したプロジェクトのセッションが存在するかどうか
     if [[ ! `echo $tmux_list | grep "$project_name"` ]]; then
-        echo cant find. make session
         (cd $project_dir && TMUX=; tmux new-session -ds $project_name) > /dev/null
     fi
 

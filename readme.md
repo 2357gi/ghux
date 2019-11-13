@@ -37,8 +37,6 @@ bindkey ^G ghux
 ```
 and do `^G` in zsh
 
-`GHUX_WITH_USER_NAME=1`するとセッション名がリポジトリユーザー+リポジトリ名になる
-
 ### alias機能
 `~/.ghux_aliases`にghuxのaliasを登録することができる。
 形式は`<alias>,<名前>,<ファイルパス>`
