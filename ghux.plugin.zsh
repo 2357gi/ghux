@@ -42,23 +42,30 @@ function ghux() {
         local project_dir
         local ghq_list=$(ghq list)
         local list
-        project_list="$(cat ~/.ghux_aliases| tr -s ',' ' ' | awk '{print "[alias]", $1}')
+        project_list="$(cat ~/.ghux_aliases | awk -F , '{print "[alias]", $1}')
 $ghq_list"
 
         project_dir=$(echo $project_list|fzf)
-
         if [[ -z $project_dir ]]; then
             [[ -n $CURSOR ]] && zle redisplay
             return 1
         fi
 
-        project_dir=$(ghq root)/$project_dir
-        local project_name
-        # session名にusernameを含めるかどうか
-        if [[ $GHUX_WITH_USER_NAME == 0 ]] ; then
-            project_name=$( echo $project_dir |rev | awk -F \/ '{printf "%s", $1}' |rev)
-        else;
-            project_name=$( echo $project_dir |rev | awk -F \/ '{printf "%s/%s", $1,$2}' |rev)
+        if [[ ! $project_dir =~ [alias] ]];then
+            project_dir=$(ghq root)/$project_dir
+            local project_name
+            # session名にusernameを含めるかどうか
+            if [[ $GHUX_WITH_USER_NAME == 0 ]] ; then
+                project_name=$( echo $project_dir |rev | awk -F \/ '{printf "%s", $1}' |rev)
+            else;
+                project_name=$( echo $project_dir |rev | awk -F \/ '{printf "%s/%s", $1,$2}' |rev)
+            fi
+        else
+            als=$(echo $project_dir| awk '{print $2}')
+            line=( `cat $file|grep -E '^'$als | tr -s ',' ' '`)
+            project_alias=${line[1]}
+            project_name=${line[2]}
+            project_dir=${line[3]}
         fi
     fi
 
