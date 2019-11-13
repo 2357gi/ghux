@@ -28,8 +28,9 @@ bindkey ^G ghux
 
 `GHUX_WITHOUT_USER_NAME=1`するとセッション名がリポジトリ名だけになる
 
-## golang
-branch - dev_goにてgolangで書き直してます。
+## todo
+- [ ] dotfilesだけ特殊な動きをするが、そういった動きをユーザーが自由に作れるように\
+e.g. 外部に`alias, project_name, project_dir` のリストを保持しそれをよしなに
 
 
 ## License
