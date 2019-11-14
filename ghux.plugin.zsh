@@ -41,14 +41,14 @@ function ghux() {
 $ghq_list"
 
 
-        project_dir=`echo $project_list|fzf`
+        project_dir="`echo $project_list|fzf`"
 
         if [[ -z $project_dir ]]; then
             [[ -n $CURSOR ]] && zle redisplay
             return 1
         fi
 
-        if [[ ! $project_dir =~ [alias] ]];then
+        if [[ ! `echo $pr_dir|grep "\[alias]"` ]];then
             project_dir=$(ghq root)/$project_dir
             local project_name
             project_name=$( echo $project_dir |rev | awk -F \/ '{printf "%s", $1}' |rev)
