@@ -2,6 +2,8 @@
 
 Select a project with ghq, launch (or select) a tmux session in one.
 
+![ghux.gif (900×506)](https://i.imgur.com/8PPInKr.gif)
+
 ghqで落としたリポジトリを1リポジトリ1セッションで開く。(セッション名も自動で設定される)  
 該当リポジトリのセッションが既に開いてあればそのセッションにアタッチする  
 
@@ -38,6 +40,8 @@ bindkey ^G ghux
 and do `^G` in zsh
 
 ### alias機能
+![zXBgZWS.gif (960×540)](https://i.imgur.com/zXBgZWS.gif)
+
 `~/.ghux_aliases`にghuxのaliasを登録することができる。
 形式は`<alias>,<名前>,<ファイルパス>`
 
