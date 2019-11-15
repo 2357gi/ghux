@@ -64,7 +64,8 @@ $ghq_list"
     fi
 
     # if you in tmux sesion
-    [[ -n $TMUX ]] && in_tmux=0
+    local in_tmux
+    [[ -n $TMUX ]] && in_tmux=0 || in_tmux=1
 
     local tmux_list=$(tmux list-session)
 
@@ -73,7 +74,7 @@ $ghq_list"
         (cd $project_dir && TMUX=; tmux new-session -ds $project_name) > /dev/null
     fi
 
-    if [[ -n $in_tmux ]] ; then
+    if [[ $in_tmux = 0 ]] ; then
         tmux switch-client -t $project_name
     else;
         tmux attach-session -t $project_name
