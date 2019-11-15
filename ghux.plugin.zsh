@@ -37,7 +37,7 @@ function ghux() {
         local project_dir
         if ( type ghq &> /dev/null ); then
             ghq_list=$(ghq list)
-            project_list="$(cat ~/.ghux_aliases | awk -F , '{print "[alias]", $1}')
+            project_list="$(cat $file | awk -F , '{print "[alias]", $1}')
 $ghq_list"
         fi
         local list
@@ -50,7 +50,7 @@ $ghq_list"
             return 1
         fi
 
-        if [[ ! `echo $pr_dir|grep "\[alias]"` ]];then
+        if [[ ! `echo $project_dir|grep "\[alias]"` ]];then
             project_dir=$(ghq root)/$project_dir
             local project_name
             project_name=$( echo $project_dir |rev | awk -F \/ '{printf "%s", $1}' |rev)
