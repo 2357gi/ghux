@@ -70,14 +70,14 @@ $ghq_list"
     local tmux_list=$(tmux list-session )
 
     # tmuxに既にfzfで選択したプロジェクトのセッションが存在するかどうか
-    if  ! (echo $tmux_list | grep -E "^$project_name"); then
+    if  ! (echo $tmux_list | grep -E "^$project_name" &>/dev/null); then
         (cd $(eval echo ${project_dir}) && TMUX=; tmux new-session -ds $project_name) > /dev/null # cdした後lsしちゃうので
     fi
 
 
     if [[ $in_tmux == 0 ]] ; then
         if [[ -n $CONTEXT ]];then
-            BUFFER="tmux switch-client -t $project_name"&& zle accept-line
+            BUFFER="tmux switch-client -t $project_name"&& zle accept-line && zle redisplay
         else;
             tmux switch-client -t $project_name
         fi
