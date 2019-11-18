@@ -26,7 +26,9 @@ function ghux() {
     touch $GHUX_ALIASES_PATH
     local file
     file="$GHUX_ALIASES_PATH"
-
+    local project_alias 
+    local project_name  
+    local project_dir
     if [[ -n $1 ]] && [[ `cat $file |grep "$1"` ]];then
         local tmp=$(cat $file |grep "$1")
         line=( `echo $tmp | tr -s ',' ' '` )
@@ -34,26 +36,25 @@ function ghux() {
         project_name=${line[2]}
         project_dir=${line[3]}
     else
-        local project_dir
         local ghq_list=$(ghq list)
         local list
         project_list="$(cat ~/.ghux_aliases | awk -F , '{print "[alias]", $1}')
 $ghq_list"
 
 
-        project_dir=`echo $project_list|fzf`
+        project_dir=$(echo $project_list|fzf)
 
         if [[ -z $project_dir ]]; then
             [[ -n $CURSOR ]] && zle redisplay
             return 1
         fi
 
-        if [[ ! $project_dir =~ [alias] ]];then
+        if ! ( echo $project_dir | grep -E "^\[\ alias\ \]" &>/dev/null);then
             project_dir=$(ghq root)/$project_dir
-            local project_name
             project_name=$( echo $project_dir |rev | awk -F \/ '{printf "%s", $1}' |rev)
         else
-            als=$(echo $project_dir| awk '{print $2}')
+            local als=$(echo $project_dir| awk '{print $2}')
+            echo $als
             line=( `cat $file|grep -E '^'$als | tr -s ',' ' '` )
             project_alias=${line[1]}
             project_name=${line[2]}
@@ -68,16 +69,23 @@ $ghq_list"
 
     # tmuxに既にfzfで選択したプロジェクトのセッションが存在するかどうか
     if [[ ! `echo $tmux_list | grep "$project_name"` ]]; then
-        (cd $project_dir && TMUX=; tmux new-session -ds $project_name) > /dev/null
+        (cd $(eval echo ${project_dir}) && TMUX=; tmux new-session -ds $project_name) > /dev/null # cdした後lsしちゃうので
     fi
 
     if [[ -n $in_tmux ]] ; then
-        tmux switch-client -t $project_name
+        if [[ -n $CURSOR ]];then
+            BUFFER="tmux switch-client -t $project_name"&& zle accept-line
+        else;
+            tmux switch-client -t $project_name
+        fi
     else;
-        tmux attach-session -t $project_name
+        
+        if [[ -n $CURSOR ]];then
+            BUFFER="tmux attach-session -t $project_name"&& zle accept-line
+        else;
+            tmux attach-session -t $project_name
+        fi
     fi
-    [[ -n $CURSOR ]] && zle redisplay
-
 }
 
 zle -N ghux
