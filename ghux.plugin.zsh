@@ -67,10 +67,10 @@ $ghq_list"
     local in_tmux
     [[ -n $TMUX ]] && in_tmux=0 || in_tmux=1
 
-    local tmux_list=$(tmux list-session)
+    local tmux_list=$(tmux list-session )
 
     # tmuxに既にfzfで選択したプロジェクトのセッションが存在するかどうか
-    if [[ ! `echo $tmux_list | grep "$project_name"` ]]; then
+    if  ! (echo $tmux_list | grep -E "^$project_name"); then
         (cd $(eval echo ${project_dir}) && TMUX=; tmux new-session -ds $project_name) > /dev/null # cdした後lsしちゃうので
     fi
 
