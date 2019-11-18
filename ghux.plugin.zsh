@@ -36,13 +36,16 @@ function ghux() {
         project_name=${line[2]}
         project_dir=${line[3]}
     else
-        local ghq_list=$(ghq list)
-        local list
-        project_list="$(cat $file | awk -F , '{print "[alias]", $1}')
+        if ( type ghq &> /dev/null ); then
+            ghq_list=$(ghq list)
+            project_list="$(cat $file | awk -F , '{print "[alias]", $1}')
 $ghq_list"
+        fi
+        local list
 
 
         project_dir=$(echo $project_list|fzf)
+        echo $project_dir
 
         if [[ -z $project_dir ]]; then
             [[ -n $CURSOR ]] && zle redisplay
@@ -63,7 +66,8 @@ $ghq_list"
     fi
 
     # if you in tmux sesion
-    [[ -n $TMUX ]] && in_tmux=0
+    local in_tmux
+    [[ -n $TMUX ]] && in_tmux=0 || in_tmux=1
 
     local tmux_list=$(tmux list-session)
 
@@ -72,16 +76,17 @@ $ghq_list"
         (cd $(eval echo ${project_dir}) && TMUX=; tmux new-session -ds $project_name) > /dev/null # cdした後lsしちゃうので
     fi
 
-    if [[ -n $in_tmux ]] ; then
-        if [[ -n $CURSOR ]];then
+
+    if [[ $in_tmux == 0 ]] ; then
+        if [[ -n $CONTEXT ]];then
             BUFFER="tmux switch-client -t $project_name"&& zle accept-line
         else;
             tmux switch-client -t $project_name
         fi
     else;
         
-        if [[ -n $CURSOR ]];then
-            BUFFER="tmux attach-session -t $project_name"&& zle accept-line
+        if [[ -n $CONTEXT ]];then
+            BUFFER="tmux attach-session -t $project_name"&& zle accept-line && zle redisplay
         else;
             tmux attach-session -t $project_name
         fi
