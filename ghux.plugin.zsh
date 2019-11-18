@@ -17,7 +17,7 @@ EOL
 }
 
 function ghux() {
-    if ! (type ghq &> /dev/null && type fzf &> /dev/null); then
+    if ! (type fzf &> /dev/null); then
         print_usage
         exit 1
     fi
@@ -29,7 +29,7 @@ function ghux() {
     local project_alias 
     local project_name  
     local project_dir
-    if [[ -n $1 ]] && [[ `cat $file |grep "$1"` ]];then
+    if [[ -n $1 ]] && [[ `cat $file |grep -E "$1"` ]];then
         local tmp=$(cat $file |grep "$1")
         line=( `echo $tmp | tr -s ',' ' '` )
         project_alias=${line[1]}
@@ -38,7 +38,7 @@ function ghux() {
     else
         local ghq_list=$(ghq list)
         local list
-        project_list="$(cat ~/.ghux_aliases | awk -F , '{print "[alias]", $1}')
+        project_list="$(cat $file | awk -F , '{print "[alias]", $1}')
 $ghq_list"
 
 
