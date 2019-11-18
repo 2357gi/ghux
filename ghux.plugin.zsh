@@ -53,12 +53,13 @@ $ghq_list"
 
         if ! ( echo $project_dir | grep -E "^\[alias\]" &>/dev/null);then
             project_dir=$(ghq root)/$project_dir
-            project_name=$( echo $project_dir |rev | awk -F \/ '{printf "%s", $1}' |rev)
+            project_name=$( echo $project_dir |rev | awk -F \/ '{printf "%s", $1}' |rev | awk '{sub("\\.",""); print $0}')
+            echo $project_name
         else
             local als=$(echo $project_dir| awk '{print $2}')
             line=( `cat $file|grep -E '^'$als | tr -s ',' ' '` )
             project_alias=${line[1]}
-            project_name=${line[2]}
+            project_name=${echo ${line[2]}| awk '{sub("\\.",""); print $0}'}
             project_dir=${line[3]}
         fi
     fi
