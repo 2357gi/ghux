@@ -14,10 +14,12 @@ if you use tmux, Sessions can be moved with instinct:cupid:
 
 ---
 
+## Intro
+### ja
 tmuxを1セッション1リポジトリで運用する上でのつらみ  
 - セッション管理が大変
 - 移動が面倒くさい
-- tmuxのデフォルトの移動機能はいまいち
+- tmuxのデフォルトの移動機能はいまいち(あいまい検索で移動したい)
 - コマンドでやろうとするとtmux内かtmux外かでコマンドを変える必要がある
 
 いい感じにするスクリプト**ghux**
@@ -30,8 +32,24 @@ tmuxを1セッション1リポジトリで運用する上でのつらみ
 
 **ただし現状ではセッション名でアタッチ先を管理しているのでセッション名を変えられない**  
 
+### En
+*1 repository 1 tmux session* is good bad not best.
+#### cons
+- sessions management is not easy if you open many sessions
+- sessions movement is difficult
+- tmux default move is hard to use (for me. i wanna use fzf)
+- tmux has `tmux swich-client` and `tmux attatch-session`. there are in or out of tmux :sob:
+
+so, i made **ghux**.
+- can swich with fzf
+- auto setting session name
+- can zle-widget
+- ghux is one command then in or out of tmux :joy:
+- No need to consider whether there is a destination session
+
 
 ## Requirements
+- zsh
 - tmux
 - ghq
 - fzf
