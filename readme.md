@@ -4,7 +4,6 @@ easy movement and management tmux session.
 
 ![vBNMI3J.gif (1280×720)](https://i.imgur.com/vBNMI3J.gif)
 
-![yjYWCeU.gif (500×321)](https://i.imgur.com/yjYWCeU.gif)
 
 # Introduction
 ## En
@@ -69,14 +68,15 @@ and do `^G` in zsh
 
 
 ### ghqとの連携
+![yjYWCeU.gif (500×321)](https://i.imgur.com/yjYWCeU.gif)  
 ghqにてリポジトリを管理している場合、ghux_aliasesを登録する必要なく  
 開きたいリポジトリのセッションを立ち上げる/アタッチする事が可能(しかもすでにセッションが立ち上がってるか意識する必要なしに！)  
 
 ### alias機能
 
-![vBNMI3J.gif (1280×720)](https://i.imgur.com/vBNMI3J.gif)
+![vBNMI3J.gif (500×321)](https://i.imgur.com/vBNMI3J.gif)  
 
-`~/.ghux_aliases`にghuxのaliasを登録することができる。
+`~/.ghux_aliases`にghuxのaliasを登録することができる。  
 形式は`<alias>,<名前>,<ファイルパス>`
 
 例: dotfilesのaliasを追加する
