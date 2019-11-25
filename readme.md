@@ -1,21 +1,28 @@
 # ghux
-
-Have you ever had trouble with tmux session management?  
-push *prefix-s* and search so many session:weary:  
-Commands that must be changed inside or outside tmux:disappointed:  
-
-if you use tmux, Sessions can be moved with instinct:cupid:  
+easy movement and management tmux session.
 
 
 ![vBNMI3J.gif (1280×720)](https://i.imgur.com/vBNMI3J.gif)
 
 ![yjYWCeU.gif (500×321)](https://i.imgur.com/yjYWCeU.gif)
 
+# Introduction
+## En
+*1 repository 1 tmux session* is good bad not best.
+### cons
+- sessions management is not easy if you open many sessions
+- sessions movement is difficult
+- tmux default move is hard to use (for me. i wanna use fzf)
+- tmux has `tmux swich-client` and `tmux attatch-session`. there are in or out of tmux :sob:
 
----
+so, i made **ghux**.
+- can swich with fzf
+- auto setting session name
+- can zle-widget
+- ghux is one command then in or out of tmux :joy:
+- No need to consider whether there is a destination session
 
-## Intro
-### ja
+## ja
 tmuxを1セッション1リポジトリで運用する上でのつらみ  
 - セッション管理が大変
 - 移動が面倒くさい
@@ -32,29 +39,15 @@ tmuxを1セッション1リポジトリで運用する上でのつらみ
 
 **ただし現状ではセッション名でアタッチ先を管理しているのでセッション名を変えられない**  
 
-### En
-*1 repository 1 tmux session* is good bad not best.
-#### cons
-- sessions management is not easy if you open many sessions
-- sessions movement is difficult
-- tmux default move is hard to use (for me. i wanna use fzf)
-- tmux has `tmux swich-client` and `tmux attatch-session`. there are in or out of tmux :sob:
-
-so, i made **ghux**.
-- can swich with fzf
-- auto setting session name
-- can zle-widget
-- ghux is one command then in or out of tmux :joy:
-- No need to consider whether there is a destination session
 
 
-## Requirements
+# Requirements
 - zsh
 - tmux
 - ghq
 - fzf
 
-## Installation
+# Installation
 Zplug
 
 ```zsh:.zshrc
@@ -62,7 +55,7 @@ zplug 2357gi/ghux
 ```
 * i have not test this
 
-## Usage
+# Usage
 ```
 $ ghux
 ```
