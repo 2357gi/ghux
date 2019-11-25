@@ -10,7 +10,6 @@ easy movement and management tmux session.
 *1 repository 1 tmux session* is good bad not best.
 ### cons
 - sessions management is not easy if you open many sessions
-- sessions movement is difficult
 - tmux default move is hard to use (for me. i wanna use fzf)
 - tmux has `tmux swich-client` and `tmux attatch-session`. there are in or out of tmux :sob:
 
@@ -24,7 +23,6 @@ so, i made **ghux**.
 ## ja
 tmuxを1セッション1リポジトリで運用する上でのつらみ  
 - セッション管理が大変
-- 移動が面倒くさい
 - tmuxのデフォルトの移動機能はいまいち(あいまい検索で移動したい)
 - コマンドでやろうとするとtmux内かtmux外かでコマンドを変える必要がある
 
