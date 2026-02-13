@@ -39,12 +39,46 @@ function ghux_recent_load_map() {
     done < "$GHUX_RECENT_PATH"
 }
 
+function ghux_recent_latest() {
+    typeset -g GHUX_RECENT_LATEST_TYPE GHUX_RECENT_LATEST_KEY
+    GHUX_RECENT_LATEST_TYPE=""
+    GHUX_RECENT_LATEST_KEY=""
+
+    [[ -f "$GHUX_RECENT_PATH" ]] || return 0
+
+    local r_type r_key
+    while IFS=$'\t' read -r r_type r_key; do
+        [[ -z "$r_type" || -z "$r_key" ]] && continue
+        GHUX_RECENT_LATEST_TYPE="$r_type"
+        GHUX_RECENT_LATEST_KEY="$r_key"
+        return 0
+    done < "$GHUX_RECENT_PATH"
+}
+
+# input pairs format: key<TAB>display
+function ghux_filter_pairs_excluding_latest() {
+    local item_type="$1"
+    local pairs="$2"
+
+    if [[ "$item_type" != "$GHUX_RECENT_LATEST_TYPE" || -z "$GHUX_RECENT_LATEST_KEY" ]]; then
+        print -r -- "$pairs"
+        return 0
+    fi
+
+    local key display
+    while IFS=$'\t' read -r key display; do
+        [[ -z "$key" || -z "$display" ]] && continue
+        [[ "$key" == "$GHUX_RECENT_LATEST_KEY" ]] && continue
+        print -r -- "$key"$'\t'"$display"
+    done <<< "$pairs"
+}
+
 function ghux_recent_record() {
     local r_type="$1"
     local r_key="$2"
 
     case "$r_type" in
-        repo|alias|session) ;;
+        repo|alias|session|window) ;;
         *) return 0 ;;
     esac
 
@@ -181,6 +215,47 @@ function ghux_pairs_to_entries() {
     done <<< "$pairs"
 }
 
+function ghux_sort_entries_by_recent() {
+    local entries="$1"
+
+    local -a prioritized
+    local -a normal
+    local display item_type key map_key rank
+    local idx=0
+
+    while IFS=$'\t' read -r display item_type key; do
+        [[ -z "$display" || -z "$item_type" || -z "$key" ]] && continue
+        (( idx++ ))
+        map_key="$item_type"$'\t'"$key"
+        rank="${GHUX_RECENT_RANK[$map_key]}"
+        if [[ -n "$rank" ]]; then
+            prioritized+=("$rank"$'\t'"$idx"$'\t'"$display"$'\t'"$item_type"$'\t'"$key")
+        else
+            normal+=("$display"$'\t'"$item_type"$'\t'"$key")
+        fi
+    done <<< "$entries"
+
+    local result=""
+
+    if (( ${#prioritized[@]} > 0 )); then
+        local sorted_prioritized
+        sorted_prioritized=$(printf '%s\n' "${prioritized[@]}" | sort -n -t $'\t' -k1,1 -k2,2 | cut -f3-)
+        result="$sorted_prioritized"
+    fi
+
+    if (( ${#normal[@]} > 0 )); then
+        local normal_text
+        normal_text=$(printf '%s\n' "${normal[@]}")
+        if [[ -n "$result" ]]; then
+            result+=$'\n'"$normal_text"
+        else
+            result="$normal_text"
+        fi
+    fi
+
+    print -r -- "$result"
+}
+
 function ghux() {
     if ! (type fzf &> /dev/null); then
         print_usage
@@ -208,14 +283,16 @@ function ghux() {
     if [[ -z "$project_name" || -z "$project_dir" ]]; then
         setopt local_options no_monitor
         ghux_recent_load_map
+        ghux_recent_latest
 
         local tmux_session_pairs tmux_window_pairs alias_pairs
         tmux_session_pairs=$(ghux_collect_tmux_session_pairs)
         tmux_window_pairs=$(ghux_collect_tmux_window_pairs)
         alias_pairs=$(ghux_collect_alias_pairs "$file")
 
-        tmux_session_pairs=$(ghux_sort_pairs_by_recent "session" "$tmux_session_pairs")
-        alias_pairs=$(ghux_sort_pairs_by_recent "alias" "$alias_pairs")
+        tmux_session_pairs=$(ghux_filter_pairs_excluding_latest "session" "$tmux_session_pairs")
+        tmux_window_pairs=$(ghux_filter_pairs_excluding_latest "window" "$tmux_window_pairs")
+        alias_pairs=$(ghux_filter_pairs_excluding_latest "alias" "$alias_pairs")
 
         local -a initial_entries_arr
         local line
@@ -235,13 +312,24 @@ function ghux() {
             initial_entries_arr+=("$line")
         done <<< "$(ghux_pairs_to_entries "alias" "$alias_pairs")"
 
+        if (( ${#initial_entries_arr[@]} > 0 )); then
+            local initial_entries_text
+            initial_entries_text=$(printf '%s\n' "${initial_entries_arr[@]}")
+            initial_entries_text=$(ghux_sort_entries_by_recent "$initial_entries_text")
+            if [[ -n "$initial_entries_text" ]]; then
+                initial_entries_arr=("${(@f)initial_entries_text}")
+            else
+                initial_entries_arr=()
+            fi
+        fi
+
         local full_tmp
         full_tmp=$(mktemp "${TMPDIR:-/tmp}/ghux_full_XXXXXX") || return 1
 
         (
-            local repo_pairs sorted_repo_pairs
+            local repo_pairs
             repo_pairs=$(ghux_collect_repo_pairs)
-            sorted_repo_pairs=$(ghux_sort_pairs_by_recent "repo" "$repo_pairs")
+            repo_pairs=$(ghux_filter_pairs_excluding_latest "repo" "$repo_pairs")
 
             local -a full_entries_arr
             full_entries_arr=("${initial_entries_arr[@]}")
@@ -249,10 +337,17 @@ function ghux() {
             while IFS= read -r line; do
                 [[ -z "$line" ]] && continue
                 full_entries_arr+=("$line")
-            done <<< "$(ghux_pairs_to_entries "repo" "$sorted_repo_pairs")"
+            done <<< "$(ghux_pairs_to_entries "repo" "$repo_pairs")"
 
             if (( ${#full_entries_arr[@]} > 0 )); then
-                printf '%s\n' "${full_entries_arr[@]}" >| "$full_tmp"
+                local full_entries_text
+                full_entries_text=$(printf '%s\n' "${full_entries_arr[@]}")
+                full_entries_text=$(ghux_sort_entries_by_recent "$full_entries_text")
+                if [[ -n "$full_entries_text" ]]; then
+                    printf '%s\n' "${(@f)full_entries_text}" >| "$full_tmp"
+                else
+                    : >| "$full_tmp"
+                fi
             else
                 : >| "$full_tmp"
             fi
@@ -304,6 +399,7 @@ function ghux() {
                 return 0
                 ;;
             window)
+                ghux_recent_record "window" "$selected_key"
                 local target_session="${selected_key%%:*}"
                 local target_index="${selected_key#*:}"
                 if [[ -n "$TMUX" ]]; then
