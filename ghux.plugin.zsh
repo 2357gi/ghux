@@ -6,7 +6,8 @@
 
 # set ghux aliases path
 : ${GHUX_ALIASES_PATH:="$HOME/.ghux_aliases"}
-
+: ${GHUX_RECENT_PATH:="${XDG_CACHE_HOME:-$HOME/.cache}/ghux/recent"}
+: ${GHUX_RECENT_LIMIT:=10}
 
 function print_usage() {
     cat << EOL
@@ -16,108 +17,296 @@ $ brew install fzf
 EOL
 }
 
+function ghux_recent_init() {
+    command mkdir -p "${GHUX_RECENT_PATH:h}" 2>/dev/null || return 1
+    touch "$GHUX_RECENT_PATH" 2>/dev/null || return 1
+    return 0
+}
+
+function ghux_recent_load_map() {
+    typeset -gA GHUX_RECENT_RANK
+    GHUX_RECENT_RANK=()
+
+    [[ -f "$GHUX_RECENT_PATH" ]] || return 0
+
+    local rank=1 r_type r_key map_key
+    while IFS=$'\t' read -r r_type r_key; do
+        [[ -z "$r_type" || -z "$r_key" ]] && continue
+        map_key="$r_type"$'\t'"$r_key"
+        [[ -n "${GHUX_RECENT_RANK[$map_key]}" ]] && continue
+        GHUX_RECENT_RANK[$map_key]=$rank
+        (( rank++ ))
+    done < "$GHUX_RECENT_PATH"
+}
+
+function ghux_recent_record() {
+    local r_type="$1"
+    local r_key="$2"
+
+    case "$r_type" in
+        repo|alias|session) ;;
+        *) return 0 ;;
+    esac
+
+    [[ -z "$r_key" ]] && return 0
+    ghux_recent_init || return 0
+
+    local tmp_file
+    tmp_file=$(mktemp "${TMPDIR:-/tmp}/ghux_recent_XXXXXX") || return 0
+
+    {
+        print -r -- "$r_type"$'\t'"$r_key"
+        awk -F $'\t' -v t="$r_type" -v k="$r_key" '!(NF >= 2 && $1 == t && $2 == k) && NF >= 2 { print $0 }' "$GHUX_RECENT_PATH" 2>/dev/null
+    } | head -n "$GHUX_RECENT_LIMIT" >| "$tmp_file"
+
+    command mv "$tmp_file" "$GHUX_RECENT_PATH" 2>/dev/null || {
+        command cp "$tmp_file" "$GHUX_RECENT_PATH" 2>/dev/null
+        /bin/rm -f "$tmp_file"
+    }
+}
+
+# input pairs format: key<TAB>display
+function ghux_sort_pairs_by_recent() {
+    local item_type="$1"
+    local pairs="$2"
+
+    local -a prioritized
+    local -a normal
+    local key display map_key rank
+
+    while IFS=$'\t' read -r key display; do
+        [[ -z "$key" || -z "$display" ]] && continue
+        map_key="$item_type"$'\t'"$key"
+        rank="${GHUX_RECENT_RANK[$map_key]}"
+        if [[ -n "$rank" ]]; then
+            prioritized+=("$rank"$'\t'"$key"$'\t'"$display")
+        else
+            normal+=("$key"$'\t'"$display")
+        fi
+    done <<< "$pairs"
+
+    local result=""
+
+    if (( ${#prioritized[@]} > 0 )); then
+        local sorted_prioritized
+        sorted_prioritized=$(printf '%s\n' "${prioritized[@]}" | sort -n -t $'\t' -k1,1 | cut -f2-)
+        result="$sorted_prioritized"
+    fi
+
+    if (( ${#normal[@]} > 0 )); then
+        local normal_text
+        normal_text=$(printf '%s\n' "${normal[@]}")
+        if [[ -n "$result" ]]; then
+            result+=$'\n'"$normal_text"
+        else
+            result="$normal_text"
+        fi
+    fi
+
+    print -r -- "$result"
+}
+
+# output pairs format: key<TAB>display
+function ghux_collect_tmux_session_pairs() {
+    [[ -n "$TMUX" ]] || return 0
+
+    local current_session
+    current_session=$(tmux display-message -p '#S' 2>/dev/null)
+
+    tmux list-sessions -F '#S' 2>/dev/null | while IFS= read -r sess; do
+        [[ -z "$sess" ]] && continue
+        [[ "$sess" == "$current_session" ]] && continue
+        print -r -- "$sess"$'\t'$'\033[32m[session]\033[0m '"$sess"
+    done
+}
+
+# output pairs format: key<TAB>display
+function ghux_collect_tmux_window_pairs() {
+    [[ -n "$TMUX" ]] || return 0
+
+    local current_window
+    current_window=$(tmux display-message -p '#S:#I' 2>/dev/null)
+
+    tmux list-windows -a -F $'#S\t#I\t#{pane_current_path}\t#W' 2>/dev/null | while IFS=$'\t' read -r sess idx pane_path win_name; do
+        [[ -z "$sess" || -z "$idx" ]] && continue
+        [[ "${sess}:${idx}" == "$current_window" ]] && continue
+
+        local branch="" git_path="$pane_path/.git"
+        if [[ -d "$git_path" ]]; then
+            local head
+            head=$(<"$git_path/HEAD")
+            [[ "$head" == ref:* ]] && branch="${head#ref: refs/heads/}"
+        elif [[ -f "$git_path" ]]; then
+            local gitdir
+            gitdir=$(<"$git_path")
+            gitdir="${gitdir#gitdir: }"
+            if [[ -f "$gitdir/HEAD" ]]; then
+                local head
+                head=$(<"$gitdir/HEAD")
+                [[ "$head" == ref:* ]] && branch="${head#ref: refs/heads/}"
+            fi
+        fi
+
+        local key="${sess}:${idx}"
+        local title="${branch:-$win_name}"
+        print -r -- "$key"$'\t'$'\033[36m[window]\033[0m '"${sess}:${idx}: ${title}"
+    done
+}
+
+# output pairs format: key<TAB>display
+function ghux_collect_alias_pairs() {
+    local file="$1"
+    [[ -f "$file" ]] || return 0
+
+    awk -F ',' 'NF >= 1 && $1 != "" { printf "%s\t\033[33m[alias]\033[0m %s\n", $1, $1 }' "$file"
+}
+
+# output pairs format: key<TAB>display
+function ghux_collect_repo_pairs() {
+    if ! (type ghq &> /dev/null); then
+        return 0
+    fi
+
+    ghq list 2>/dev/null | awk '{ printf "%s\t\033[34m[repo]\033[0m %s\n", $0, $0 }'
+}
+
+function ghux_pairs_to_entries() {
+    local item_type="$1"
+    local pairs="$2"
+
+    local key display
+    while IFS=$'\t' read -r key display; do
+        [[ -z "$key" || -z "$display" ]] && continue
+        print -r -- "$display"$'\t'"$item_type"$'\t'"$key"
+    done <<< "$pairs"
+}
+
 function ghux() {
     if ! (type fzf &> /dev/null); then
         print_usage
-        exit 1
+        return 1
     fi
 
-    # touchはファイルが存在しなかったときだけ作ってくれるので
-    touch $GHUX_ALIASES_PATH
-    local file
-    file="$GHUX_ALIASES_PATH"
-    local project_alias 
-    local project_name  
+    touch "$GHUX_ALIASES_PATH"
+    ghux_recent_init >/dev/null 2>&1
+
+    local file="$GHUX_ALIASES_PATH"
+    local project_alias
+    local project_name
     local project_dir
-    if [[ -n $1 ]] && [[ `cat $file |grep -E "$1"` ]];then
-        local tmp=$(cat $file |grep "$1")
-        line=( `echo $tmp | tr -s ',' ' '` )
-        project_alias=${line[1]}
-        project_name=${line[2]}
-        project_dir=${line[3]}
-    else
-        # ghq list をバックグラウンドで開始（tmux 情報収集と並列実行）
+
+    if [[ -n "$1" ]]; then
+        local alias_line
+        alias_line=$(awk -F ',' -v a="$1" '$1 == a { print; exit }' "$file")
+        if [[ -n "$alias_line" ]]; then
+            IFS=',' read -r project_alias project_name project_dir <<< "$alias_line"
+            project_name="${project_name/./}"
+            ghux_recent_record "alias" "$project_alias"
+        fi
+    fi
+
+    if [[ -z "$project_name" || -z "$project_dir" ]]; then
         setopt local_options no_monitor
-        local ghq_tmp=${TMPDIR:-/tmp}/ghux_ghq_$$
-        local ghq_pid=""
-        if ( type ghq &> /dev/null ); then
-            ghq list > "$ghq_tmp" &
-            ghq_pid=$!
-        fi
+        ghux_recent_load_map
 
-        # tmux セッション・ウィンドウ一覧を収集
-        local tmux_sessions=""
-        local tmux_windows=""
-        if [[ -n $TMUX ]]; then
-            local current_session=$(tmux display-message -p '#S')
-            local current_window=$(tmux display-message -p '#S:#I')
+        local tmux_session_pairs tmux_window_pairs alias_pairs
+        tmux_session_pairs=$(ghux_collect_tmux_session_pairs)
+        tmux_window_pairs=$(ghux_collect_tmux_window_pairs)
+        alias_pairs=$(ghux_collect_alias_pairs "$file")
 
-            # 現在のセッション以外のセッション一覧（awk で一括処理）
-            tmux_sessions=$(tmux list-sessions -F '#S' 2>/dev/null | awk -v cur="$current_session" '$0 != cur {printf "\033[32m[session]\033[0m\t%s\n", $0}')
+        tmux_session_pairs=$(ghux_sort_pairs_by_recent "session" "$tmux_session_pairs")
+        alias_pairs=$(ghux_sort_pairs_by_recent "alias" "$alias_pairs")
 
-            # 現在のウィンドウ以外のウィンドウ一覧
-            # git-wt 使用時はブランチ名を表示（.git/HEAD を直接読んで fork 回避）
-            tmux_windows=$(tmux list-windows -a -F $'#S\t#I\t#{pane_current_path}\t#W' 2>/dev/null | while IFS=$'\t' read -r sess idx pane_path win_name; do
-                [[ "${sess}:${idx}" == "$current_window" ]] && continue
-                local branch="" git_path="$pane_path/.git"
-                if [[ -d "$git_path" ]]; then
-                    local head=$(<"$git_path/HEAD")
-                    [[ "$head" == ref:* ]] && branch="${head#ref: refs/heads/}"
-                elif [[ -f "$git_path" ]]; then
-                    local gitdir=$(<"$git_path")
-                    gitdir="${gitdir#gitdir: }"
-                    [[ -f "$gitdir/HEAD" ]] && { local head=$(<"$gitdir/HEAD"); [[ "$head" == ref:* ]] && branch="${head#ref: refs/heads/}"; }
-                fi
-                printf '\033[36m[window]\033[0m\t%s:%s: %s\n' "$sess" "$idx" "${branch:-$win_name}"
-            done)
-        fi
+        local -a initial_entries_arr
+        local line
 
-        # ghq list の完了を待つ
-        if [[ -n "$ghq_pid" ]]; then
-            wait $ghq_pid 2>/dev/null
-            ghq_list=$(<"$ghq_tmp")
-            command rm -f "$ghq_tmp"
-        fi
+        while IFS= read -r line; do
+            [[ -z "$line" ]] && continue
+            initial_entries_arr+=("$line")
+        done <<< "$(ghux_pairs_to_entries "session" "$tmux_session_pairs")"
 
-        # 一覧の順序: sessions → windows → aliases → ghq projects
-        local alias_list="$(awk -F , '{if ($1 != "") printf "\033[33m[alias]\033[0m\t%s\n", $1}' "$file")"
-        local repo_list=""
-        if [[ -n "$ghq_list" ]]; then
-            repo_list=$(echo "$ghq_list" | awk '{printf "\033[34m[repo]\033[0m\t%s\n", $0}')
-        fi
-        local parts=()
-        [[ -n "$tmux_sessions" ]] && parts+=("$tmux_sessions")
-        [[ -n "$tmux_windows" ]] && parts+=("$tmux_windows")
-        [[ -n "$alias_list" ]] && parts+=("$alias_list")
-        [[ -n "$repo_list" ]] && parts+=("$repo_list")
-        project_list="${(j:\n:)parts}"
+        while IFS= read -r line; do
+            [[ -z "$line" ]] && continue
+            initial_entries_arr+=("$line")
+        done <<< "$(ghux_pairs_to_entries "window" "$tmux_window_pairs")"
+
+        while IFS= read -r line; do
+            [[ -z "$line" ]] && continue
+            initial_entries_arr+=("$line")
+        done <<< "$(ghux_pairs_to_entries "alias" "$alias_pairs")"
+
+        local full_tmp
+        full_tmp=$(mktemp "${TMPDIR:-/tmp}/ghux_full_XXXXXX") || return 1
+
+        (
+            local repo_pairs sorted_repo_pairs
+            repo_pairs=$(ghux_collect_repo_pairs)
+            sorted_repo_pairs=$(ghux_sort_pairs_by_recent "repo" "$repo_pairs")
+
+            local -a full_entries_arr
+            full_entries_arr=("${initial_entries_arr[@]}")
+
+            while IFS= read -r line; do
+                [[ -z "$line" ]] && continue
+                full_entries_arr+=("$line")
+            done <<< "$(ghux_pairs_to_entries "repo" "$sorted_repo_pairs")"
+
+            if (( ${#full_entries_arr[@]} > 0 )); then
+                printf '%s\n' "${full_entries_arr[@]}" >| "$full_tmp"
+            else
+                : >| "$full_tmp"
+            fi
+        ) &
+        local full_pid=$!
+
+        local reload_cmd
+        reload_cmd="while [ ! -s '$full_tmp' ]; do if ! kill -0 $full_pid 2>/dev/null; then break; fi; sleep 0.05; done; cat '$full_tmp' 2>/dev/null"
 
         local selected
-        selected=$(echo $project_list | fzf --ansi --tabstop=12)
+        if (( ${#initial_entries_arr[@]} > 0 )); then
+            selected=$(printf '%s\n' "${initial_entries_arr[@]}" | fzf \
+                --ansi \
+                --tabstop=12 \
+                --prompt='ghux> ' \
+                --delimiter=$'\t' \
+                --with-nth=1 \
+                --bind "start:reload:$reload_cmd")
+        else
+            selected=$(printf '' | fzf \
+                --ansi \
+                --tabstop=12 \
+                --prompt='ghux> ' \
+                --delimiter=$'\t' \
+                --with-nth=1 \
+                --bind "start:reload:$reload_cmd")
+        fi
 
-        if [[ -z $selected ]]; then
-            [[ -n $CURSOR ]] && zle redisplay
+        wait $full_pid 2>/dev/null
+        /bin/rm -f "$full_tmp"
+
+        if [[ -z "$selected" ]]; then
+            [[ -n "$CURSOR" ]] && zle redisplay
             return 1
         fi
 
-        # ANSI コードを除去してプレフィックスとコンテンツを分離
-        selected=$(echo "$selected" | sed $'s/\033\\[[0-9;]*m//g')
-        local prefix=$(echo "$selected" | cut -f1)
-        local content=$(echo "$selected" | cut -f2-)
+        local selected_type selected_key
+        selected_type=$(print -r -- "$selected" | cut -f2)
+        selected_key=$(print -r -- "$selected" | cut -f3-)
 
-        case "$prefix" in
-            "[session]")
-                if [[ -n $TMUX ]]; then
-                    tmux switch-client -t "$content"
+        case "$selected_type" in
+            session)
+                ghux_recent_record "session" "$selected_key"
+                if [[ -n "$TMUX" ]]; then
+                    tmux switch-client -t "$selected_key"
                 else
-                    tmux attach-session -t "$content"
+                    tmux attach-session -t "$selected_key"
                 fi
                 return 0
                 ;;
-            "[window]")
-                local target_session=$(echo "$content" | awk -F: '{print $1}')
-                local target_index=$(echo "$content" | awk -F: '{print $2}' | tr -d ' ')
-                if [[ -n $TMUX ]]; then
+            window)
+                local target_session="${selected_key%%:*}"
+                local target_index="${selected_key#*:}"
+                if [[ -n "$TMUX" ]]; then
                     tmux switch-client -t "$target_session"
                     tmux select-window -t "$target_session:$target_index"
                 else
@@ -126,44 +315,55 @@ function ghux() {
                 fi
                 return 0
                 ;;
-            "[alias]")
-                local als="$content"
-                line=( `cat $file|grep -E "^$als" | tr -s ',' ' '` )
-                project_alias=${line[1]}
-                project_name=$(echo ${line[2]}| awk '{sub("\\.",""); print $0}')
-                project_dir=${line[3]}
+            alias)
+                local alias_line
+                alias_line=$(awk -F ',' -v a="$selected_key" '$1 == a { print; exit }' "$file")
+                if [[ -z "$alias_line" ]]; then
+                    return 1
+                fi
+                IFS=',' read -r project_alias project_name project_dir <<< "$alias_line"
+                project_name="${project_name/./}"
+                ghux_recent_record "alias" "$project_alias"
                 ;;
-            "[repo]")
-                project_dir=$(ghq root)/$content
-                project_name=$( echo $project_dir |rev | awk -F \/ '{printf "%s", $1}' |rev | awk '{sub("\\.",""); print $0}')
+            repo)
+                if ! (type ghq &> /dev/null); then
+                    return 1
+                fi
+                project_dir="$(ghq root)/$selected_key"
+                project_name="${selected_key##*/}"
+                project_name="${project_name/./}"
+                ghux_recent_record "repo" "$selected_key"
+                ;;
+            *)
+                return 1
                 ;;
         esac
     fi
 
+    [[ -z "$project_name" || -z "$project_dir" ]] && return 1
+
     # if you in tmux sesion
     local in_tmux
-    [[ -n $TMUX ]] && in_tmux=0 || in_tmux=1
+    [[ -n "$TMUX" ]] && in_tmux=0 || in_tmux=1
 
-    local tmux_list=$(tmux list-session )
-
-    # tmuxに既にfzfで選択したプロジェクトのセッションが存在するかどうか
-    if  ! (echo $tmux_list | grep -E "^$project_name" &>/dev/null); then
-        (cd $(eval echo ${project_dir}) && TMUX=; tmux new-session -ds $project_name) > /dev/null # cdした後lsしちゃうので
+    # tmuxに既に選択したプロジェクトのセッションが存在するかどうか
+    if ! tmux has-session -t "$project_name" 2>/dev/null; then
+        local resolved_dir
+        resolved_dir=$(eval echo "${project_dir}")
+        (cd "$resolved_dir" && TMUX=; tmux new-session -ds "$project_name") > /dev/null 2>&1
     fi
 
-
-    if [[ $in_tmux == 0 ]] ; then
-        if [[ -n $CONTEXT ]];then
-            BUFFER="tmux switch-client -t $project_name"&& zle accept-line && zle redisplay
-        else;
-            tmux switch-client -t $project_name
+    if [[ $in_tmux == 0 ]]; then
+        if [[ -n "$CONTEXT" ]]; then
+            BUFFER="tmux switch-client -t $project_name" && zle accept-line && zle redisplay
+        else
+            tmux switch-client -t "$project_name"
         fi
-    else;
-
-        if [[ -n $CONTEXT ]];then
-            BUFFER="tmux attach-session -t $project_name"&& zle accept-line && zle redisplay
-        else;
-            tmux attach-session -t $project_name
+    else
+        if [[ -n "$CONTEXT" ]]; then
+            BUFFER="tmux attach-session -t $project_name" && zle accept-line && zle redisplay
+        else
+            tmux attach-session -t "$project_name"
         fi
     fi
 }
