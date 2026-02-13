@@ -14,9 +14,8 @@ easy movement and management tmux session.
 - tmux has `tmux swich-client` and `tmux attatch-session`. there are in or out of tmux :sob:
 
 so, i made **ghux**.
-- can swich with fzf
+- can switch with built-in fuzzy search UI
 - auto setting session name
-- can zle-widget
 - ghux is one command then in or out of tmux :joy:
 - No need to consider whether there is a destination session
 
@@ -28,9 +27,8 @@ tmuxを1セッション1リポジトリで運用する上でのつらみ
 
 いい感じにするスクリプト**ghux**
 
-- fzfを用いたあいまい検索でセッションを移動することが可能
+- Go内蔵のあいまい検索UIでセッションを移動可能
 - セッション名も自動で設定してくれる
-- zle-widgetを用いて直感的な操作が可能
 - tmuxにすでにアタッチしているか否かを考える必要がない
 - 移動先のセッションが存在するかどうか考えずに移動が可能(もしセッションが存在しなければ自動でつくる)
 
@@ -39,31 +37,58 @@ tmuxを1セッション1リポジトリで運用する上でのつらみ
 
 
 # Requirements
-- zsh
+- go (build時)
 - tmux
-- ghq
-- fzf
+- ghq (optional)
 
 # Installation
-Zplug
+Build binary
 
-```zsh:.zshrc
-zplug 2357gi/ghux
+```bash
+go build -o ghux ./cmd/ghux
 ```
-* i have not test this
 
 # Usage
+対話選択:
+
 ```
 $ ghux
 ```
 
-or
+alias指定:
 
-```zsh:.zshrc
-bindkey ^G ghux
+```bash
+$ ghux dotfiles
 ```
-and do `^G` in zsh
 
+`~/.ghux_aliases`:
+
+```text
+<alias>,<name>,<path>
+```
+
+例:
+
+```text
+dotfiles,dotfiles,$HOME/dotfiles
+```
+
+### Config (TOML)
+`$XDG_CONFIG_HOME/ghux/config.toml` (default: `~/.config/ghux/config.toml`)
+
+```toml
+aliases_path = "~/.ghux_aliases"
+recent_path = "~/.cache/ghux/recent"
+recent_limit = 10
+dotfiles_option = false
+```
+
+envでも上書き可能:
+- `GHUX_CONFIG`
+- `GHUX_ALIASES_PATH`
+- `GHUX_RECENT_PATH`
+- `GHUX_RECENT_LIMIT`
+- `GHUX_DOTFILES_OPTION`
 
 ### ghqとの連携
 ![yjYWCeU.gif (500×321)](https://i.imgur.com/yjYWCeU.gif)  
@@ -76,12 +101,6 @@ ghqにてリポジトリを管理している場合、ghux_aliasesを登録す�
 
 `~/.ghux_aliases`にghuxのaliasを登録することができる。  
 形式は`<alias>,<名前>,<ファイルパス>`
-
-例: dotfilesのaliasを追加する
-
-```
-dotfiles,dotfiles,$HOME/dotfiles
-```
 
 # 課題
 aliasに登録してないけど開いたtmux sessionもよしなに管理したい  
