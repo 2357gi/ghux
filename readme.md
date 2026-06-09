@@ -45,8 +45,12 @@ tmuxを1セッション1リポジトリで運用する上でのつらみ
 Build binary
 
 ```bash
-go build -o ghux ./cmd/ghux
+go build -ldflags="-B gobuildid" -o ghux ./cmd/ghux
 ```
+
+> `-ldflags="-B gobuildid"` ensures an `LC_UUID` load command is embedded.
+> Recent macOS dyld refuses to launch binaries without it
+> (`missing LC_UUID load command`).
 
 # Usage
 対話選択:
