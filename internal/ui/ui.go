@@ -24,6 +24,7 @@ func SelectEntry(entries []model.Entry) (model.Entry, error) {
 		Items:     entries,
 		Templates: templates,
 		Size:      20,
+		Stdin:     &escAbortReader{r: os.Stdin},
 		Stdout:    &bellFilterWriter{w: os.Stdout},
 		Searcher: func(input string, index int) bool {
 			e := entries[index]
@@ -37,6 +38,31 @@ func SelectEntry(entries []model.Entry) (model.Entry, error) {
 		return model.Entry{}, ErrAborted
 	}
 	return entries[i], nil
+}
+
+// escAbortReader wraps stdin so that pressing the Esc key aborts the prompt.
+//
+// promptui relies on chzyer/readline, which treats Esc (0x1b) as the start of
+// an escape sequence (arrow keys send "Esc [ A" etc.) and therefore swallows a
+// lone Esc keypress. A terminal in raw mode delivers each escape sequence in a
+// single read, so a standalone Esc arrives as a one-byte read of 0x1b while
+// real sequences arrive as multi-byte reads. We translate only the former into
+// Ctrl-C (0x03), which readline reports as ErrInterrupt -> ErrAborted.
+type escAbortReader struct {
+	r io.Reader
+}
+
+func (e *escAbortReader) Read(p []byte) (int, error) {
+	n, err := e.r.Read(p)
+	if n == 1 && p[0] == 0x1b {
+		p[0] = 0x03
+	}
+	return n, err
+}
+
+// Close is a no-op; we must not close the shared os.Stdin file descriptor.
+func (e *escAbortReader) Close() error {
+	return nil
 }
 
 type bellFilterWriter struct {
